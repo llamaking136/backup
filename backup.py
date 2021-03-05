@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python3
 from __future__ import print_function
 
 __version__ = "1.0.0"

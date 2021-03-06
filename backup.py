@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/local/bin/python3
 from __future__ import print_function
 
 __version__ = "1.0.0"
@@ -10,7 +10,7 @@ WARNING: can only backup non-binary files
 """
 
 from sys import argv, stdout, stderr, version_info
-from os import listdir, getcwd, chdir, walk, mkdir
+from os import listdir, getcwd, chdir, walk, mkdir, makedirs
 from os.path import isdir, abspath, join, exists
 import datetime
 from json import loads, dumps
@@ -138,7 +138,7 @@ def restore_backup(backup):
             continue
         else:
             print("\33[32mcreating\33[0m dir " + i)
-            mkdir(i)
+            makedirs(i, exist_ok = True)
 
     for i in backup.files:
         if exists(i[0]):

@@ -137,7 +137,7 @@ def restore_backup(backup):
             print("warning: dir " + i + " exists, no creation", file = stderr)
             continue
         else:
-            print("\33[35mcreating\33[0m dir " + i)
+            print("\33[32mcreating\33[0m dir " + i)
             mkdir(i)
 
     for i in backup.files:

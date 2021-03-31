@@ -20,3 +20,7 @@ and it should show a list of previous backups.
 If you need more infomation, type:
 
   `python3 backup.py help`
+
+In order to install backup, type:
+
+  `sh INSTALL.sh /path/to/exec/backup`

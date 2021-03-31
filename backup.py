@@ -1,4 +1,7 @@
-#!/usr/local/bin/python3
+#!/usr/local/Cellar/python@3.9/3.9.0_1/bin/python3
+
+## XXX: EDIT TO YOUR INTERPRETER PATH!!
+
 from __future__ import print_function
 
 __version__ = "1.0.3"

@@ -4,7 +4,7 @@
 
 from __future__ import print_function
 
-__version__ = "1.0.3"
+__version__ = "1.1.0"
 
 """
 This program creates a total backup of all files in a certain root directory,
@@ -42,9 +42,12 @@ def filecheck(file1, file2):
         f2.close()
         return True
 
+def get_root(filename):
+    return filename.split("/")[0]
+
 def _help():
     print(f"""
-usage: backup [backup, metaview, cmp, help]
+usage: backup [backup, metaview, restore, log, cmp, help]
 
 backup is a program that backs up files and can
 restore files
@@ -53,6 +56,8 @@ basically git but worse
 options:
     backup    : backs up the current directory
     metaview  : views backups in the past
+    restore   : restores a backup in the past
+    log       : alias for metaview (without the cmdline)
     cmp       : compares latest backup to current dir
     help      : shows this help page and exits
 
@@ -112,6 +117,8 @@ try:
         ignore[i] = remove_comments(ignore[i], "#")
 except FileNotFoundError:
     ignore = []
+
+ignore.append(".backup")
 
 class File:
     def __init__(self, filename, data):
@@ -233,6 +240,8 @@ def backup():
     start_backup()
 
     for i in dir_list:
+        if get_root(i) in ignore:
+            continue
         print("\33[32mdir\33[0m    " + i + "/")
         backup_dir(i)
 
@@ -243,8 +252,9 @@ def backup():
             continue
         if (current_file == "backup.bak"):
             continue
-        if (current_file in ignore):
-            # print("\33[35mignore\33[0m " + get_file_path(i))
+        # print(current_file, add_root_path(current_file))
+        if (i in ignore or get_root(i) in ignore):
+            # print("\33[35mignore\33[0m " + i + ", root=" + get_root(current_file))
             continue
         # i = get_file_path(i)
         # path = i.split("/")
@@ -357,14 +367,14 @@ def compare():
     modified = []
 
     for i in dirs_new: # new vs old dirs
-        if i not in dirs_old:
+        if i not in dirs_old and get_root(i) not in ignore:
             added.append(i)
     for i in dirs_old:
         if i not in dirs_new:
             deleted.append(i)
 
     for i in files_new.keys(): # new vs old files
-        if i not in files_old.keys():
+        if i not in files_old.keys() and get_root(i) not in ignore:
             added.append(i)
     for i in files_old.keys():
         if i not in files_new.keys():
@@ -405,7 +415,7 @@ def compare():
     if not added and not deleted and not modified:
         print("nothing changed since last backup")
 
-def get_metadata():
+def print_backups():
     ret_backup()
 
     num = 0
@@ -413,14 +423,13 @@ def get_metadata():
         num += 1
         print("backup #" + str(num))
         print("time: " + i.time)
-        # print("\nfiles: ")
-        # for ii in i.files:
-        #     print(ii[0])
-        # print("\nnew dirs: ")
-        # for ii in i.dirs:
-        #     print(ii)
         print("message: '%s'" % i.message)
         print()
+
+    return num
+
+def get_metadata():
+    num = print_backups()
 
     try:
         num_what = int(input("which bak to edit? (blank to abort) > "))
@@ -439,7 +448,9 @@ def get_metadata():
     help - display this help page and exit
     restore - restore a backup to the current directory
     delete - work in progress
-    # info - show information on current backup""")
+    files - show all files
+    dirs - show all directories
+    info - show information on current backup""")
         exit()
     elif num_todo == "restore":
         restore_backup(backups[num - 1])
@@ -454,6 +465,8 @@ def get_metadata():
         for i in backups[num - 1].dirs:
             print(ii)
         exit(1)
+    elif num_todo == "info":
+        pass
     else:
         print("error: unknown command: " + num_todo, file = stderr)
         exit(1)
@@ -461,13 +474,30 @@ def get_metadata():
     file.close()
 
 def restore():
-    pass            
+    num = print_backups()
+
+    try:
+        num_what = int(input("which bak to restore? (blank to abort) > "))
+        if num_what == "":
+            print("aborting")
+            exit(1)
+        if num_what <= 0 or num_what > num:
+            print("error: inputted wrong bak#, stopping", file = stderr)
+            exit(1)
+    except ValueError:
+        print("error: didn't input a number, stopping", file = stderr)
+        exit(1)
+    restore_backup(backups[num - 1])
+
+def log_backups():
+    print_backups()
+    exit()
 
 if (__name__ == "__main__"):
     try:
         argv[1]
     except IndexError:
-        stderr.write("usage: backup [backup, metaview, cmp, help]\n");stderr.flush()
+        stderr.write("usage: backup [backup, metaview, restore, log, cmp, help]\n");stderr.flush()
         exit(1)
 
     if (exists(".backup/backup.bak")):
@@ -482,6 +512,10 @@ if (__name__ == "__main__"):
         backup()
     elif (argv[1].lower() == "metaview"):
         get_metadata()
+    elif argv[1].lower() == "restore":
+        restore()
+    elif argv[1].lower() == "log":
+        log_backups()
     elif argv[1].lower() == "cmp":
         compare()
     elif (argv[1].lower() == "help"):

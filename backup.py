@@ -31,8 +31,8 @@ if (not exists(".backup")): mkdir(".backup")
 # if (not exists(".backup/backup_info.json")): open(".backup/backup_info.json", "wt").write("{}")
 
 def filecheck(file1, file2):
-    f1 = open(file1, "rt")
-    f2 = open(file2, "rt")
+    f1 = open(file1, "rb")
+    f2 = open(file2, "rb")
     if f1.read() != f2.read():
         f1.close()
         f2.close()
@@ -102,7 +102,7 @@ def remove_comments(data, comment):
 
 def readFromBin(filename):
     result = ""#b""
-    with open(filename, "r", encoding = "utf-8", errors = "ignore") as f:
+    with open(filename, "rb", encoding = "utf-8", errors = "ignore") as f:
         while (byte := f.read(1)):
             result += byte
     return result#.decode(getEncoding(filename))
@@ -155,7 +155,7 @@ def file_index(filenames):
 
 def get_file_data(filename):
     try:
-        return open(filename, "rt").read()
+        return open(filename, "rb").read()
     except:
         return None
 
@@ -179,51 +179,58 @@ def add_root_path(filename):
     return root + "/" + filename
 
 def start_backup():
-    bak.write("[BACKUP]::[BAK_BEGIN " + str(datetime.date.today()) + " " + str(datetime.datetime.now().time())[0:8] + "]\n")
+    bak.write(b"[BACKUP]::[BAK_BEGIN " + str(datetime.date.today()).encode("utf-8") + b" " + str(datetime.datetime.now().time()).encode("utf-8")[0:8] + b"]\n")
 
 def backup_file(path, data):
-    bak.write("[FILE]::[FILE_BEGIN " + path + "]\n")
+    bak.write(b"[FILE]::[FILE_BEGIN " + path.encode("utf-8") + b"]\n")
     bak.write(data)
-    bak.write("\n[FILE]::[FILE_END]\n")
+    bak.write(b"\n[FILE]::[FILE_END]\n")
 
 def findDirs(contents):
     final = []
     for i in contents:
-        if i.startswith("[DIR]::[NEW_DIR "):
+        if i.startswith(b"[DIR]::[NEW_DIR "):
             final.append(i[16:len(i) - 1])
     return final
 
 def backup_dir(path):
-    bak.write("[DIR]::[NEW_DIR " + path + "]\n")
+    bak.write(b"[DIR]::[NEW_DIR " + path.encode("utf-8") + b"]\n")
 
 def backup_message(message):
-    bak.write("[BACKUP]::[MSG %s]\n" % message)
+    bak.write(b"[BACKUP]::[MSG %s]\n" % message.encode("utf-8"))
 
 def end_backup():
-    bak.write("[BACKUP]::[BAK_END]\n")
+    bak.write(b"[BACKUP]::[BAK_END]\n")
 
 def restore_backup(backup):
     print("restoring backup...")
     for i in backup.dirs:
         if exists(i):
-            print("warning: dir " + i + " exists, no creation", file = stderr)
+            print("warning: dir " + i.decode("utf-8") + " exists, no creation", file = stderr)
             continue
         else:
-            print("\33[32mcreating\33[0m dir " + i)
+            print("\33[32mcreating\33[0m dir " + i.decode("utf-8"))
             makedirs(i, exist_ok = True)
 
     for i in backup.files:
         if exists(i[0]):
-            print("warning: file " + i[0] + " exists, overwriting", file = stderr)
-            file = open(i[0], "w")
-            file.write(i[1])
-            file.close()
+            print("warning: file " + i[0].decode("utf-8") + " exists, overwriting", file = stderr)
+            try:
+                file = open(i[0], "wb")
+                file.write(i[1])
+                file.close()
+            except PermissionError:
+                print("warning: file " + i[0].decode("utf-8") + " cannot be written to (permission denied), ignoring", file = stderr)
+                continue
         else:
-            print("\33[32mcreating & writing\33[0m file " + i[0])
-            file = open(i[0], "w")
-            file.write(i[1])
-            file.close()
-
+            print("\33[32mcreating & writing\33[0m file " + i[0].decode("utf-8"))
+            try:
+                file = open(i[0], "wb")
+                file.write(i[1])
+                file.close()
+            except PermissionError:
+                print("warning: file " + i[0].decode("utf-8") + " cannot be written to (permission denied), ignoring", file = stderr)
+                continue
     print("backup restored with no errors")
 
 def backup():
@@ -271,7 +278,7 @@ def backup():
                 
         print("\33[32madding\33[0m " + i)
         try:
-            current_open = open(i).read()
+            current_open = open(i, "rb").read()
         except UnicodeDecodeError:
             # try:
             # current_open = readFromBin(i)#.decode("windows-1254")#"utf-8", "backslashreplace")
@@ -296,8 +303,8 @@ def ret_backup():
     if (not exists(".backup/backup.bak")):
         stderr.write("error: backup file not found\n");stderr.flush()
         exit(1)
-    file = open(".backup/backup.bak")
-    content = file.read().split("\n")
+    file = open(".backup/backup.bak", "rb")
+    content = file.read().split(b"\n")
     file.close()
     line = 0
     back_nums = 0
@@ -313,32 +320,32 @@ def ret_backup():
     file_list = []
     inBackup = False
     for i in range(len(content)):
-        if content[i].startswith("[BACKUP]::[BAK_BEGIN"):
+        if content[i].startswith(b"[BACKUP]::[BAK_BEGIN"):
             inBackup = True
             back_start = i
             back_time = content[i][21:40]
             back_nums += 1
         
-        if content[i].startswith("[BACKUP]::[BAK_END]"):
+        if content[i].startswith(b"[BACKUP]::[BAK_END]"):
             inBackup = False
             back_end = i
-            back_content = "\n".join(content[back_start:back_end])
+            back_content = b"\n".join(content[back_start:back_end])
             backups.append(Backup(back_time, file_list, findDirs(content[back_start:back_end]), back_msg))
             file_list = []
 
-        if content[i].startswith("[FILE]::[FILE_BEGIN"):
+        if content[i].startswith(b"[FILE]::[FILE_BEGIN"):
             file_start = i + 1
             
-        if content[i].startswith("[FILE]::[FILE_END]"):
+        if content[i].startswith(b"[FILE]::[FILE_END]"):
             file_end = i
-            file_content = "\n".join(content[file_start:file_end])
+            file_content = b"\n".join(content[file_start:file_end])
             current_filename = content[file_start - 1][20:len(content[file_start - 1]) - 1]
             file_list.append([current_filename, file_content])
 
-        if content[i].startswith("[DIR]::[NEW_DIR "):
+        if content[i].startswith(b"[DIR]::[NEW_DIR "):
             path = content[i][16:len(content[i]) - 1]
 
-        if content[i].startswith("[BACKUP]::[MSG "):
+        if content[i].startswith(b"[BACKUP]::[MSG "):
             back_msg = content[i][15:len(content[i]) - 1]
 
 def to_dict(lst):
@@ -422,8 +429,8 @@ def print_backups():
     for i in backups:
         num += 1
         print("backup #" + str(num))
-        print("time: " + i.time)
-        print("message: '%s'" % i.message)
+        print("time: " + i.time.decode("utf-8"))
+        print("message: '%s'" % i.message.decode("utf-8"))
         print()
 
     return num
@@ -501,9 +508,9 @@ if (__name__ == "__main__"):
         exit(1)
 
     if (exists(".backup/backup.bak")):
-        bak = open(".backup/backup.bak", "at")
+        bak = open(".backup/backup.bak", "ab")
     elif (argv[1].lower() == "backup"):
-        bak = open(".backup/backup.bak", "at")
+        bak = open(".backup/backup.bak", "ab")
     else:
         stderr.write("fatal error: no backup file found, try backing up\n");stderr.flush()
         exit(1)
